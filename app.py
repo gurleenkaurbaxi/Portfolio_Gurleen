@@ -17,7 +17,7 @@ def get_base64_of_bin_file(bin_file):
     return base64.b64encode(data).decode()
 
 def main():
-    # 1. Read files with error logging
+    # 1. Read files
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             html = f.read()
@@ -27,30 +27,59 @@ def main():
         st.error(f"Critical error reading files: {e}")
         return
 
-    # 2. Basic Bundling
-    # Instead of complicated replacements, we'll strip the original head/body tags 
-    # and re-assemble them to ensure 100% correctness.
-    
-    # Extract content between <body> and </body>
-    start_body = html.find('<body>') + 6
-    end_body = html.find('</body>')
-    body_content = html[start_body:end_body]
-    
-    # CSS overrides for iframe compatibility
+    # 2. Extract Body Content
+    # We do a case-insensitive search for <body> and </body>
+    import re
+    body_match = re.search(r'<body>(.*?)</body>', html, re.DOTALL | re.IGNORECASE)
+    if body_match:
+        body_content = body_match.group(1)
+    else:
+        # Fallback if body tags are missing/malformed
+        body_content = html
+
+    # 3. Iframe Overrides
     overrides = """
     <style>
-        .fade-in { opacity: 1 !important; transform: none !important; visibility: visible !important; }
-        h1 { clip-path: none !important; opacity: 1 !important; }
-        nav { position: sticky !important; top: 0; }
-        body::before, .cursor-blob { display: none !important; }
-        section { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+        /* Force visibility on all elements that use the fade-in animation */
+        .fade-in { 
+            opacity: 1 !important; 
+            transform: none !important; 
+            visibility: visible !important; 
+            transition: none !important;
+        }
+        
+        /* Force h1 reveal */
+        h1 { 
+            clip-path: none !important; 
+            opacity: 1 !important; 
+            visibility: visible !important;
+        }
+
+        /* Use sticky nav for better iframe compatibility */
+        nav { 
+            position: sticky !important; 
+            top: 0; 
+            z-index: 1000;
+        }
+
+        /* Disable effects that often fail in cross-origin iframes */
+        body::before { display: none !important; }
+        .cursor-blob { display: none !important; }
+        .magnetic { transform: none !important; }
+
+        /* Ensure all containers have base visibility */
+        section, div, span, h1, h2, h3, p, a {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
     </style>
     """
-    
-    # Re-assemble the HTML string
+
+    # 4. Re-assemble Final HTML
+    # We inject Lucide and our CSS directly
     final_html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -59,40 +88,49 @@ def main():
         <style>{css}</style>
         {overrides}
     </head>
-    <body style="margin:0; padding:0;">
+    <body style="margin:0; padding:0; background-color: #FFFAF5;">
         {body_content}
         <script>
-            document.addEventListener('DOMContentLoaded', () => {{
-                try {{ lucide.createIcons(); }} catch(e) {{}}
+            // Ensure icons load and visibility is triggered
+            window.onload = () => {{
+                try {{ if(window.lucide) lucide.createIcons(); }} catch(e) {{}}
                 document.querySelectorAll('.fade-in').forEach(el => {{
                     el.classList.add('visible');
-                    el.style.opacity = '1';
                 }});
-            }});
+            }};
         </script>
     </body>
     </html>
     """
 
-    # 3. Handle Avatar
+    # 5. Handle Avatar Path
     if os.path.exists("avatar.png"):
         img_base64 = get_base64_of_bin_file("avatar.png")
         final_html = final_html.replace('src="avatar.png"', f'src="data:image/png;base64,{img_base64}"')
 
-    # 4. Global Streamlit Overrides
+    # 6. Streamlit Page Styling
+    # We remove Streamlit's internal height constraints on the component
     st.markdown("""
         <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
             .stApp { margin: 0; padding: 0; }
-            .block-container { padding: 0 !important; }
-            iframe { border: none !important; width: 100%; height: 100vh; }
+            .block-container { 
+                padding: 0px !important; 
+                margin: 0px !important; 
+                max-width: 100% !important;
+            }
+            [data-testid="stVerticalBlock"] { gap: 0 !important; }
+            /* IMPORTANT: Don't force height: 100vh here, let the component height decide */
+            iframe { border: none !important; }
         </style>
     """, unsafe_allow_html=True)
 
-    # 5. Render
-    components.html(final_html, height=8500, scrolling=True)
+    # 7. Final Render
+    # height=None would be ideal but components.html requires a value or it defaults to 150px.
+    # We use a very large height and scrolling=False to make it look like a single page.
+    components.html(final_html, height=10000, scrolling=False)
 
 if __name__ == "__main__":
     main()
