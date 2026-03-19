@@ -75,9 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(el);
     });
 
-    // Smooth scroll for nav links
+    // Smooth scroll for nav links (skip if opening new tabs)
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
+            if (this.target === '_blank') {
+                return;
+            }
             e.preventDefault();
             const target = document.querySelector(this.getAttribute('href'));
             if (target) {
@@ -92,4 +95,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Gallery carousel controls
+    const track = document.querySelector('.carousel-track');
+    const slides = track ? Array.from(track.children) : [];
+    let currentSlide = 0;
+
+    const prevButton = document.querySelector('.carousel-btn.prev');
+    const nextButton = document.querySelector('.carousel-btn.next');
+
+    function updateCarousel() {
+        if (!track) return;
+        const offset = -currentSlide * 100;
+        track.style.transform = `translateX(${offset}%)`;
+    }
+
+    if (nextButton) {
+        nextButton.addEventListener('click', () => {
+            currentSlide = (currentSlide + 1) % slides.length;
+            updateCarousel();
+        });
+    }
+
+    if (prevButton) {
+        prevButton.addEventListener('click', () => {
+            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            updateCarousel();
+        });
+    }
+
+    // Optional auto-rotation of carousel each 6 seconds
+    setInterval(() => {
+        if (slides.length > 0) {
+            currentSlide = (currentSlide + 1) % slides.length;
+            updateCarousel();
+        }
+    }, 6000);
 });
