@@ -104,23 +104,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevButton = document.querySelector('.carousel-btn.prev');
     const nextButton = document.querySelector('.carousel-btn.next');
 
+    const visibleImages = 2;
+    const maxSlideIndex = Math.max(0, slides.length - visibleImages);
+
     function updateCarousel() {
         if (!track) return;
-        const offset = -currentSlide * 100;
+        currentSlide = Math.max(0, Math.min(currentSlide, maxSlideIndex));
+        const offset = -currentSlide * 50;
         track.style.transform = `translateX(${offset}%)`;
     }
 
     if (nextButton) {
         nextButton.addEventListener('click', () => {
-            currentSlide = (currentSlide + 1) % slides.length;
+            if (currentSlide >= maxSlideIndex) {
+                currentSlide = 0;
+            } else {
+                currentSlide += 1;
+            }
             updateCarousel();
         });
     }
 
     if (prevButton) {
         prevButton.addEventListener('click', () => {
-            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            if (currentSlide <= 0) {
+                currentSlide = maxSlideIndex;
+            } else {
+                currentSlide -= 1;
+            }
             updateCarousel();
+        });
+    }
+
+    // Awards horizontal card carousel controls
+    const awardsTrack = document.querySelector('.awards-track');
+    const awardsPrev = document.querySelector('.awards-btn.prev');
+    const awardsNext = document.querySelector('.awards-btn.next');
+
+    if (awardsTrack && awardsPrev && awardsNext) {
+        const scrollAmount = () => {
+            const card = awardsTrack.querySelector('.award-card');
+            return card ? card.offsetWidth + 16 : awardsTrack.clientWidth * 0.8;
+        };
+
+        awardsPrev.addEventListener('click', () => {
+            awardsTrack.scrollBy({ left: -scrollAmount(), behavior: 'smooth' });
+        });
+
+        awardsNext.addEventListener('click', () => {
+            awardsTrack.scrollBy({ left: scrollAmount(), behavior: 'smooth' });
         });
     }
 
